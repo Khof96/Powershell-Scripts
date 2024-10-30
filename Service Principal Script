@@ -1,0 +1,49 @@
+#-----Skript for å hente bruker data i dette tilfellet, men kan endress til øsnket data, som en service principal i entra id og mate det inn i en excel-fil-----#
+
+
+
+#--------Tilkobling og autentisering opp mot entra id--------#
+
+# Sjekk om du allerede er koblet til Microsoft Graph
+$graphContext = Get-MgContext
+
+if ($null -eq $graphContext) {
+    Write-Output "Connecting to Microsoft Graph with Service Principal..."
+
+    # Parametere for tilkobling
+    $tenantId = "your-tenant-id"
+    $clientId = "your-client-id"
+    $certificatePath = "/path/to/your/certificate.pfx"  # Adjust the path as needed
+    $password = ConvertTo-SecureString -String "YourCertificatePassword" -Force -AsPlainText
+
+    # Last inn sertifikatet som i dette tilfellet er brukt for autentisering for service principalen
+    $certificate = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certificatePath, $password)
+
+    # Koble til ved bruk av sertifikatet med Microsoft Graph
+    Connect-MgGraph -ClientId $clientId `
+                    -TenantId $tenantId `
+                    -Certificate $certificate
+} else {
+    Write-Output "Already connected to Microsoft Graph."
+}
+
+# Bekreft tilkoblingen
+Get-MgContext
+
+#---------- Excel data---------#
+
+# Installer nødvendige moduler hvis du ikke allerede har gjort det
+Install-Module -Name ImportExcel -Force -AllowClobber
+Import-Module Microsoft.Graph.Users
+
+# Angi eksportbane 
+$exportPath = "~/Desktop/GraphUsers.xlsx"
+
+# Få brukere data ved å bruke Microsoft Graph
+Get-MgUser -All | Select-Object DisplayName, UserPrincipalName, Mail, JobTitle, Department | 
+    Export-Excel -Path $exportPath -AutoSize -AutoFilter -BoldTopRow -WorksheetName "Users"
+
+Write-Host "Excel file has been created at: $exportPath" -ForegroundColor Green
+
+# Åpne filplasseringen (fungerer på macOS)
+Invoke-Expression "open $(Split-Path $exportPath)"
